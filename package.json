@@ -1,0 +1,17 @@
+{
+  "name": "jujutsu-world-game",
+  "version": "1.0.0",
+  "description": "2D Action Side-Scroller Game - Jujutsu World",
+  "main": "index.html",
+  "scripts": {
+    "start": "serve ."
+  },
+  "keywords": [
+    "game",
+    "2d",
+    "action",
+    "jujutsu"
+  ],
+  "author": "",
+  "license": "MIT"
+}

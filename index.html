@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jujutsu World - 2D Action Side-Scroller</title>
+  <meta name="description" content="2D action side-scroller: Survive 5 waves and defeat the boss to save the Jujutsu world!">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0008;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      font-family: 'Rajdhani', sans-serif;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    #game-wrapper {
+      position: relative;
+      width: 960px;
+      height: 540px;
+    }
+
+    /* ===== TOP HUD ===== */
+    #hud {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 100%);
+      pointer-events: none;
+    }
+
+    #hud-left { display: flex; flex-direction: column; gap: 4px; }
+
+    .hud-label {
+      font-family: 'Silkscreen', monospace;
+      font-size: 8px;
+      color: #ff6b6b;
+      letter-spacing: 2px;
+    }
+
+    #hp-bar-wrap { display: flex; align-items: center; gap: 8px; }
+
+    #hp-bar-bg {
+      width: 200px;
+      height: 14px;
+      background: rgba(255,255,255,0.1);
+      border: 2px solid rgba(255,100,100,0.6);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    #hp-bar-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #ff1133 0%, #ff6677 100%);
+      transition: width 0.15s ease;
+    }
+    #hp-text {
+      font-family: 'Silkscreen', monospace;
+      font-size: 9px;
+      color: #ffaaaa;
+      white-space: nowrap;
+    }
+
+    #hud-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+
+    #wave-info {
+      font-family: 'Silkscreen', monospace;
+      font-size: 10px;
+      color: #ffcc44;
+      text-shadow: 0 0 6px #ff8800;
+    }
+    #slash-cd {
+      font-family: 'Silkscreen', monospace;
+      font-size: 9px;
+      color: #88ccff;
+      pointer-events: auto;
+      cursor: pointer;
+      background: rgba(0, 0, 0, 0.65);
+      border: 1px solid rgba(68, 255, 170, 0.5);
+      padding: 3px 8px;
+      border-radius: 4px;
+      transition: all 0.15s ease;
+    }
+    #slash-cd:hover {
+      background: rgba(68, 255, 170, 0.25);
+      transform: scale(1.04);
+    }
+    /* ===== BOSS HP ===== */
+    #boss-hud {
+      position: absolute;
+      bottom: 60px; left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      width: 480px;
+      text-align: center;
+      display: none;
+      pointer-events: none;
+    }
+    #boss-name {
+      font-family: 'Silkscreen', monospace;
+      font-size: 10px;
+      color: #cc44ff;
+      text-shadow: 0 0 10px #9900ff;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+    #boss-hp-bg {
+      width: 100%;
+      height: 16px;
+      background: rgba(0,0,0,0.7);
+      border: 2px solid rgba(180,0,255,0.7);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    #boss-hp-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #7700ff 0%, #cc44ff 100%);
+      transition: width 0.15s ease;
+    }
+
+    /* ===== CANVAS ===== */
+    #gameCanvas {
+      display: block;
+      width: 960px;
+      height: 540px;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      outline: none;
+    }
+
+    /* ===== OVERLAYS ===== */
+    .overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    .overlay.hidden { display: none; }
+
+    #overlay-victory { background: radial-gradient(ellipse at center, rgba(0,50,15,0.97) 0%, rgba(0,0,0,0.98) 100%); }
+    #overlay-gameover { background: radial-gradient(ellipse at center, rgba(70,0,0,0.97) 0%, rgba(0,0,0,0.98) 100%); }
+    #overlay-loading { background: #0a0008; }
+    #overlay-wave { background: transparent; pointer-events: none; }
+
+    .overlay-title {
+      font-family: 'Silkscreen', monospace;
+      font-size: 24px;
+      line-height: 1.5;
+      text-align: center;
+      margin-bottom: 28px;
+      text-shadow: 0 0 20px currentColor;
+    }
+    .overlay-title.win { color: #44ff88; }
+    .overlay-title.lose { color: #ff4444; }
+    .overlay-title.wave { color: #ffcc44; font-size: 34px; text-shadow: 0 0 24px #ff8800; }
+
+    .btn-restart {
+      font-family: 'Silkscreen', monospace;
+      font-size: 12px;
+      background: transparent;
+      color: #fff;
+      border: 2px solid rgba(255,255,255,0.8);
+      padding: 10px 28px;
+      cursor: pointer;
+      letter-spacing: 2px;
+      transition: all 0.2s;
+    }
+    .btn-restart:hover {
+      background: rgba(255,255,255,0.12);
+      transform: scale(1.04);
+      box-shadow: 0 0 16px rgba(255,255,255,0.25);
+    }
+
+    #loading-text {
+      font-family: 'Silkscreen', monospace;
+      font-size: 13px;
+      color: #cc44ff;
+      letter-spacing: 3px;
+      margin-bottom: 16px;
+    }
+    #loading-bar-bg {
+      width: 280px;
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid #cc44ff;
+    }
+    #loading-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #8800ff, #cc44ff);
+      transition: width 0.1s;
+    }
+
+    /* ===== ON-SCREEN BUTTONS ===== */
+    #onscreen-controls {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 120;
+      pointer-events: auto;
+    }
+    .ctrl-btn {
+      font-family: 'Silkscreen', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 5px 14px;
+      background: rgba(12, 4, 18, 0.85);
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.1s ease;
+      backdrop-filter: blur(4px);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    }
+    .ctrl-btn .ctrl-key {
+      font-size: 11px;
+      color: #ffcc44;
+      font-weight: bold;
+    }
+    .ctrl-btn .ctrl-desc {
+      font-size: 8px;
+      color: #ddd;
+      margin-top: 2px;
+      letter-spacing: 0.5px;
+    }
+    .ctrl-btn:hover {
+      background: rgba(255, 255, 255, 0.16);
+      border-color: #ffcc44;
+      transform: translateY(-2px);
+    }
+    .ctrl-btn:active, .ctrl-btn.pressed {
+      background: rgba(255, 204, 68, 0.35);
+      border-color: #ffcc44;
+      transform: translateY(1px);
+      box-shadow: 0 0 12px rgba(255, 204, 68, 0.6);
+    }
+    .ctrl-btn-skill {
+      border-color: rgba(68, 255, 170, 0.6);
+    }
+    .ctrl-btn-skill .ctrl-key {
+      color: #44ffaa;
+    }
+    .ctrl-btn-skill:active, .ctrl-btn-skill.pressed {
+      background: rgba(68, 255, 170, 0.35);
+      border-color: #44ffaa;
+      box-shadow: 0 0 14px rgba(68, 255, 170, 0.7);
+    }
+  </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+
+  <!-- TOP HUD -->
+  <div id="hud">
+    <div id="hud-left">
+      <span class="hud-label">PLAYER HP</span>
+      <div id="hp-bar-wrap">
+        <div id="hp-bar-bg"><div id="hp-bar-fill"></div></div>
+        <span id="hp-text">125 / 125 (100%)</span>
+      </div>
+    </div>
+    <div id="hud-right">
+      <span id="wave-info">STAGE 1 - WAVE 1 / 5</span>
+      <span id="slash-cd" title="คลิกเพื่อใช้สกิลฟันทั่วแมพ">[E] SLASH: READY</span>
+    </div>
+  </div>
+
+  <!-- CANVAS -->
+  <canvas id="gameCanvas" width="960" height="540" tabindex="0"></canvas>
+
+  <!-- BOSS HP -->
+  <div id="boss-hud">
+    <div id="boss-name">ETERNAL CURSE - KAMSAP NIRANDR</div>
+    <div id="boss-hp-bg"><div id="boss-hp-fill"></div></div>
+  </div>
+
+  <!-- ON-SCREEN BUTTONS -->
+  <div id="onscreen-controls">
+    <button id="btn-ctrl-a" class="ctrl-btn" title="เดินซ้าย (ปุ่ม A)">
+      <span class="ctrl-key">A</span>
+      <span class="ctrl-desc">◀ เดินซ้าย</span>
+    </button>
+    <button id="btn-ctrl-w" class="ctrl-btn" title="กระโดด (ปุ่ม W หรือ Spacebar)">
+      <span class="ctrl-key">W / SPACE</span>
+      <span class="ctrl-desc">▲ กระโดด</span>
+    </button>
+    <button id="btn-ctrl-d" class="ctrl-btn" title="เดินขวา (ปุ่ม D)">
+      <span class="ctrl-key">D</span>
+      <span class="ctrl-desc">เดินขวา ▶</span>
+    </button>
+    <button id="btn-ctrl-e" class="ctrl-btn ctrl-btn-skill" title="สกิลฟันทั่วแมพ (ปุ่ม E)">
+      <span class="ctrl-key">E</span>
+      <span class="ctrl-desc">⚔️ ฟันทั่วแมพ (200 DMG)</span>
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div class="overlay" id="overlay-loading">
+    <div id="loading-text">LOADING ASSETS...</div>
+    <div id="loading-bar-bg"><div id="loading-bar-fill"></div></div>
+  </div>
+
+  <!-- Wave Announcement -->
+  <div class="overlay hidden" id="overlay-wave">
+    <div class="overlay-title wave" id="wave-announce-text">WAVE 1</div>
+  </div>
+
+  <!-- Victory -->
+  <div class="overlay hidden" id="overlay-victory">
+    <div class="overlay-title win">you win you have save the jujustu world</div>
+    <button class="btn-restart" id="btn-play-again">play again at first </button>
+  </div>
+
+  <!-- Game Over -->
+  <div class="overlay hidden" id="overlay-gameover">
+    <div class="overlay-title lose">you dead all rule by curse</div>
+    <button class="btn-restart" id="btn-restart">เล่นใหม่อีกครั้ง (Restart)</button>
+  </div>
+
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
